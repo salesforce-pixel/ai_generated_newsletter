@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+
+    <types>
+        <members>CFOBDWeeklyDigestScheduler</members>
+        <members>CFOBDWeeklyDigestQueueable</members>
+        <members>CFOBDCanvasController</members>
+        <name>ApexClass</name>
+    </types>
+
+    <types>
+        <members>cfoBDCanvas</members>
+        <name>LightningComponentBundle</name>
+    </types>
+
+    <types>
+        <members>CFO_BD_Weekly_Digest__c</members>
+        <members>Market_Intelligence__c</members>
+        <name>CustomObject</name>
+    </types>
+
+    <types>
+        <members>Account.CFO_BD_Account__c</members>
+        <name>CustomField</name>
+    </types>
+
+    <types>
+        <members>CFO_BD_Weekly_Digest__c-CFO BD Weekly Digest Layout</members>
+        <name>Layout</name>
+    </types>
+
+    <version>65.0</version>
+</Package>

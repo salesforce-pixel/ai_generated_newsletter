@@ -1,0 +1,416 @@
+<template>
+    <div class="canvas-root">
+
+        <!-- Loading State -->
+        <template if:true={isLoading}>
+            <div class="loader-screen">
+                <div class="loader-inner">
+                    <div class="loader-ring"></div>
+                    <div class="loader-text">Retrieving intelligence digest...</div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Error State -->
+        <template if:true={hasError}>
+            <div class="error-screen">
+                <div class="error-code">503</div>
+                <div class="error-msg">{errorMessage}</div>
+            </div>
+        </template>
+
+        <!-- Main Canvas -->
+        <template if:true={isReady}>
+
+            <!-- ── HERO HEADER ── -->
+            <header class="hero">
+                <div class="hero-noise"></div>
+                <div class="hero-grid-lines"></div>
+
+                <div class="hero-left">
+                    <div class="hero-eyebrow">
+                        <span class="eyebrow-tag">CFO BD Origination</span>
+                        <span class="eyebrow-sep">·</span>
+
+                        <!-- Ready status → amber badge; otherwise green badge -->
+                        <template if:true={isStatusReady}>
+                            <span class="eyebrow-status eyebrow-status--ready">
+                                Awaiting Review
+                            </span>
+                        </template>
+                        <template if:false={isStatusReady}>
+                            <span class="eyebrow-status" data-status={digest.meta.status}>
+                                {statusLabel}
+                            </span>
+                        </template>
+
+                    </div>
+                    <h1 class="hero-title">BD Origination<br/>Weekly Digest</h1>
+                    <div class="hero-meta-row">
+                        <span class="hero-week">{digest.meta.week_label}</span>
+                        <span class="hero-sep">—</span>
+                        <span class="hero-date">Generated {digest.meta.date_generated}</span>
+                    </div>
+                </div>
+
+                <div class="hero-right">
+                    <!-- Stat Pills -->
+                    <div class="stat-grid">
+                        <div class="stat-pill">
+                            <div class="stat-num">{digest.headline_stats.total_engagements}</div>
+                            <div class="stat-lbl">Engagements</div>
+                        </div>
+                        <div class="stat-pill">
+                            <div class="stat-num">{digest.headline_stats.active_regions}</div>
+                            <div class="stat-lbl">Active regions</div>
+                        </div>
+                        <div class="stat-pill stat-pill--wide">
+                            <div class="stat-num stat-num--sm">{digest.headline_stats.pipeline_value_label}</div>
+                            <div class="stat-lbl">Pipeline value</div>
+                        </div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="hero-controls">
+                        <!-- Date picker -->
+                        <div class="date-control">
+                            <label class="date-label">View digest for</label>
+                            <div class="date-select-wrap">
+                                <select class="date-select" onchange={handleDateChange}>
+                                    <template for:each={digestDates} for:item="d">
+                                        <option key={d.id} value={d.id} selected={d.isSelected}>{d.label}</option>
+                                    </template>
+                                </select>
+                                <span class="date-select-arrow">↓</span>
+                            </div>
+                        </div>
+
+                        <!-- Publish button — Admin only, visible only when digest is Ready -->
+                        <template if:true={canPublish}>
+                            <button class="publish-btn" onclick={handlePublish}>
+                                <span class="publish-icon">✓</span>
+                                <span>Publish</span>
+                            </button>
+                        </template>
+
+
+                    </div>
+                </div>
+            </header>
+
+            <!-- ── NAV TABS ── -->
+            <nav class="section-nav">
+                <button class="nav-tab" data-section="overview" onclick={handleNavClick} data-active={isOverviewActive}>Overview</button>
+                <button class="nav-tab" data-section="intelligence" onclick={handleNavClick} data-active={isIntelligenceActive}>Key Intelligence</button>
+                <button class="nav-tab" data-section="deals" onclick={handleNavClick} data-active={isDealsActive}>Deals of the Week</button>
+                <button class="nav-tab" data-section="pipeline" onclick={handleNavClick} data-active={isPipelineActive}>Pipeline</button>
+                <button class="nav-tab" data-section="engagements" onclick={handleNavClick} data-active={isEngagementsActive}>Engagements</button>
+                <div class="nav-ink" style={inkStyle}></div>
+            </nav>
+
+            <!-- ── CONTENT AREA ── -->
+            <main class="content-area">
+
+                <!-- OVERVIEW SECTION -->
+                <template if:true={isOverviewActive}>
+                    <div class="section-wrap animate-in">
+
+                        <!-- AI Summary Card -->
+                        <div class="ai-summary-card">
+                            <div class="ai-summary-header">
+                                <div class="ai-pulse-dot"></div>
+                                <span class="ai-label">AI Executive Summary</span>
+                                <span class="ai-model">Claude Sonnet · {digest.meta.date_generated}</span>
+                                <!-- Re-run — Admin only, lives here because this is what gets regenerated -->
+                                <template if:true={isAdmin}>
+                                    <button class="rerun-btn rerun-btn--inline" onclick={handleRerun} disabled={isRunning}>
+                                        <span class="rerun-icon" data-running={isRunning}></span>
+                                        <span>{rerunLabel}</span>
+                                    </button>
+                                </template>
+                            </div>
+                            <blockquote class="ai-summary-text">{digest.ai_summary}</blockquote>
+                        </div>
+
+                        <!-- Overview Grid -->
+                        <div class="overview-grid">
+
+                            <!-- Key Intel snapshot -->
+                            <div class="panel panel--intel">
+                                <div class="panel-header">
+                                    <span class="panel-title">Key intelligence</span>
+                                    <span class="panel-count">{intelCount} accounts</span>
+                                </div>
+                                <div class="intel-list">
+                                    <template for:each={digest.key_intelligence} for:item="item">
+                                        <div key={item.company} class="intel-row" onclick={handleIntelClick} data-company={item.company}>
+                                            <div class="intel-row-left">
+                                                <span class="intel-region-dot" style={item.regionDotStyle}></span>
+                                                <div>
+                                                    <div class="intel-company">{item.company}</div>
+                                                    <div class="intel-region">{item.region}</div>
+                                                </div>
+                                            </div>
+                                            <div class="intel-row-right">
+                                                <span class="deal-tag" style={item.dealTagStyle}>{item.deal_type}</span>
+                                                <span class="intel-arrow">→</span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- DGA Outlook -->
+                            <div class="panel panel--dga">
+                                <div class="panel-header">
+                                    <span class="panel-title">DGA outlook</span>
+                                    <span class="panel-count">{dgaCount} projects</span>
+                                </div>
+                                <div class="dga-list">
+                                    <template for:each={digest.dga_outlook} for:item="proj">
+                                        <div key={proj.project_code} class="dga-row">
+                                            <div class="dga-dot"></div>
+                                            <div class="dga-info">
+                                                <div class="dga-name">{proj.project_code}</div>
+                                                <div class="dga-meta">{proj.geography} · {proj.deal_type}</div>
+                                            </div>
+                                            <div class="dga-stage">{proj.stage}</div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Funnel summary -->
+                            <div class="panel panel--funnel">
+                                <div class="panel-header">
+                                    <span class="panel-title">Pre-DGA funnel</span>
+                                    <span class="panel-count">{funnelCount} projects</span>
+                                </div>
+                                <div class="funnel-bars">
+                                    <template for:each={funnelStages} for:item="stage">
+                                        <div key={stage.label} class="funnel-stage-row">
+                                            <span class="funnel-stage-lbl">{stage.label}</span>
+                                            <div class="funnel-stage-track">
+                                                <div class="funnel-stage-fill" style={stage.barStyle}></div>
+                                            </div>
+                                            <span class="funnel-stage-num">{stage.count}</span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </template>
+
+                <!-- INTELLIGENCE SECTION -->
+                <template if:true={isIntelligenceActive}>
+                    <div class="section-wrap animate-in">
+                        <div class="intel-cards-grid">
+                            <template for:each={digest.key_intelligence} for:item="item">
+                                <div key={item.company} class="intel-card">
+                                    <div class="intel-card-header" style={item.headerStyle}>
+                                        <div class="intel-card-region">{item.region}</div>
+                                        <div class="intel-card-sector">{item.sub_sector}</div>
+                                    </div>
+                                    <div class="intel-card-body">
+                                        <div class="intel-card-company">{item.company}</div>
+                                        <p class="intel-card-summary">{item.summary}</p>
+                                        <div class="intel-card-footer">
+                                            <span class="deal-tag" style={item.dealTagStyle}>{item.deal_type}</span>
+                                            <div class="intel-reps">
+                                                <template for:each={item.assigned_reps} for:item="rep">
+                                                    <span key={rep} class="rep-chip">{rep}</span>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- DEALS SECTION -->
+                <template if:true={isDealsActive}>
+                    <div class="section-wrap animate-in">
+                        <div class="deals-list">
+                            <template for:each={digest.deals_of_week} for:item="deal">
+                                <div key={deal.target} class="deal-card">
+                                    <div class="deal-card-left">
+                                        <div class="deal-sector-tag">{deal.sector}</div>
+                                        <div class="deal-parties">
+                                            <span class="deal-acquirer">{deal.acquirer}</span>
+                                            <span class="deal-arrow-large">→</span>
+                                            <span class="deal-target">{deal.target}</span>
+                                        </div>
+                                        <div class="deal-geo">{deal.geography}</div>
+                                        <p class="deal-commentary">{deal.commentary}</p>
+                                    </div>
+                                    <div class="deal-card-right">
+                                        <div class="deal-value">{deal.deal_value_label}</div>
+                                        <div class="deal-metric">{deal.price_metric}</div>
+                                        <div class="deal-type-badge">{deal.deal_type}</div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- PIPELINE SECTION -->
+                <template if:true={isPipelineActive}>
+                    <div class="section-wrap animate-in">
+                        <div class="pipeline-table-wrap">
+                            <table class="pipeline-table">
+                                <thead>
+                                    <tr>
+                                        <th>Project</th>
+                                        <th>Stage</th>
+                                        <th>Region</th>
+                                        <th>Country</th>
+                                        <th>Deal type</th>
+                                        <th>Lead</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={digest.funnel_projects} for:item="proj">
+                                        <tr key={proj.project_code} class="pipeline-row">
+                                            <td class="proj-name">{proj.project_code}</td>
+                                            <td>
+                                                <span class="stage-pill" style={proj.stagePillStyle}>{proj.stage}</span>
+                                            </td>
+                                            <td>{proj.region}</td>
+                                            <td>{proj.country}</td>
+                                            <td>{proj.deal_type}</td>
+                                            <td class="proj-lead">{proj.lead}</td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- ENGAGEMENTS SECTION -->
+                <template if:true={isEngagementsActive}>
+                    <div class="section-wrap animate-in">
+                        <div class="engage-split">
+
+                            <div class="engage-col">
+                                <div class="engage-col-header">
+                                    <span class="engage-col-title">Current week</span>
+                                    <span class="engage-col-count">{currentWeekCount} meetings</span>
+                                </div>
+                                <div class="engage-timeline">
+                                    <template for:each={digest.external_engagements.current_week} for:item="eng">
+                                        <div key={eng.date} class="engage-item">
+                                            <div class="engage-date-col">
+                                                <span class="engage-day">{eng.dayLabel}</span>
+                                                <span class="engage-month">{eng.monthLabel}</span>
+                                            </div>
+                                            <div class="engage-line-col">
+                                                <div class="engage-dot"></div>
+                                                <div class="engage-line"></div>
+                                            </div>
+                                            <div class="engage-content">
+                                                <div class="engage-company">{eng.company}</div>
+                                                <div class="engage-contacts">{eng.contactsLabel}</div>
+                                                <div class="engage-meta">
+                                                    <span class="engage-region">{eng.region}</span>
+                                                    <span class="engage-channel-pill">{eng.channel}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div class="engage-divider"></div>
+
+                            <div class="engage-col">
+                                <div class="engage-col-header">
+                                    <span class="engage-col-title">Coming week</span>
+                                    <span class="engage-col-count">{comingWeekCount} scheduled</span>
+                                </div>
+                                <div class="engage-timeline">
+                                    <template for:each={digest.external_engagements.coming_week} for:item="eng">
+                                        <div key={eng.date} class="engage-item engage-item--upcoming">
+                                            <div class="engage-date-col">
+                                                <span class="engage-day">{eng.dayLabel}</span>
+                                                <span class="engage-month">{eng.monthLabel}</span>
+                                            </div>
+                                            <div class="engage-line-col">
+                                                <div class="engage-dot engage-dot--upcoming"></div>
+                                                <div class="engage-line"></div>
+                                            </div>
+                                            <div class="engage-content">
+                                                <div class="engage-company">{eng.company}</div>
+                                                <div class="engage-contacts">{eng.contactsLabel}</div>
+                                                <div class="engage-meta">
+                                                    <span class="engage-region">{eng.region}</span>
+                                                    <span class="engage-channel-pill">{eng.channel}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </template>
+
+            </main>
+
+        </template>
+
+        <!-- ── FEEDBACK MODAL (Admin Re-run) ── -->
+        <template if:true={showModal}>
+            <div class="modal-overlay" onclick={handleModalCancel}>
+                <div class="modal-card" onclick={stopPropagation}>
+
+                    <div class="modal-header">
+                        <div class="modal-header-left">
+                            <div class="modal-icon">↻</div>
+                            <div>
+                                <div class="modal-title">Re-run AI Analysis</div>
+                                <div class="modal-subtitle">Optionally guide the next generation</div>
+                            </div>
+                        </div>
+                        <button class="modal-close" onclick={handleModalCancel}>✕</button>
+                    </div>
+
+                    <div class="modal-body">
+                        <label class="modal-field-label" for="feedbackArea">
+                            Admin guidance
+                            <span class="modal-field-optional">(optional)</span>
+                        </label>
+                        <textarea
+                            id="feedbackArea"
+                            class="modal-textarea"
+                            placeholder="e.g. Focus on European renewables M&A this week. Expand the DGA section. Highlight any Nordic offshore deals."
+                            value={adminFeedback}
+                            onchange={handleFeedbackChange}
+                            rows="5"
+                        ></textarea>
+                        <p class="modal-hint">
+                            This guidance is injected directly into the AI system prompt for this run only.
+                            Leave blank to use the default prompt.
+                        </p>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="modal-btn modal-btn--cancel" onclick={handleModalCancel}>Cancel</button>
+                        <button class="modal-btn modal-btn--confirm" onclick={handleModalConfirm} disabled={isRunning}>
+                            <span class="rerun-icon" data-running={isRunning}></span>
+                            <span>{rerunLabel}</span>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </template>
+
+    </div>
+</template>
