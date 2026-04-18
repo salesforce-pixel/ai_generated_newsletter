@@ -29,14 +29,14 @@ Ensure the following are in place before deploying:
   - Einstein AI / Models API (with access to at least one supported model)
   - Salesforce Scheduler (for automated weekly runs)
 - The following custom object: **`CFO_BD_Weekly_Digest__c`** with fields:
-  - `Status__c` (Picklist: `Generating`, `Ready`, `Published`)
+  - `Status__c` (Picklist: `Generating`, `Ready`, `Published`, `Archived`)
   - `Full_JSON_Analysis__c` (Long Text Area)
   - `Date_Generated__c` (Date)
   - `LLM_Used__c` (Text)
   - `AI_Prompt_Used__c` (Long Text Area)
   - `Job_ID__c` (Text)
 - Accounts flagged with `CFO_BD_Account__c` (Checkbox) custom field
-- **`Market_Intelligence__c`** custom object with fields: `Name__c`, `Account__c`, `Country_c__c`, `Region_c__c`, `Theme_c__c`, `Impact_c__c`, `Summary_c__c`
+- **`market_intelligence__c`** custom object with fields: `Name__c`, `Account__c`, `Country_c__c`, `Region_c__c`, `Theme_c__c`, `Impact_c__c`, `Summary_c__c`
 
 ---
 
@@ -79,9 +79,9 @@ System.schedule('CFO BD Weekly Digest', cronExp, new CFOBDWeeklyDigestScheduler(
 > CFOBDWeeklyDigestScheduler.run();
 > ```
 
-### Step 5: Add the LWC to a Record Page or App Page
+### Step 5: Add the LWC to a full screen single region App Page
 
-1. Navigate to the page where you want to surface the component (e.g. a Home page or a custom App Page).
+1. Navigate to the page where you want to surface the component.
 2. Click the **Setup** gear → **Edit Page** to open **Lightning App Builder**.
 3. Locate **"CFO BD Canvas"** in the component panel on the left.
 4. Drag and drop it onto the page in your preferred location.
