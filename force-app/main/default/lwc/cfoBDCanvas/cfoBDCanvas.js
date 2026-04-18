@@ -18,19 +18,29 @@ const REGION_COLORS = {
 };
 
 const DEAL_COLORS = {
-    'Swap':        { bg: 'rgba(29,158,117,0.15)', color: '#5DCAA5', border: 'rgba(29,158,117,0.3)' },
-    'Acquisition': { bg: 'rgba(55,138,221,0.15)', color: '#85B7EB', border: 'rgba(55,138,221,0.3)' },
-    'Divestment':  { bg: 'rgba(239,159,39,0.15)',  color: '#FAC775', border: 'rgba(239,159,39,0.3)' },
-    'Partnership': { bg: 'rgba(127,119,221,0.15)', color: '#AFA9EC', border: 'rgba(127,119,221,0.3)' },
+    'Swap':        { bg: 'rgba(10,126,106,0.12)',  color: '#065C4E', border: 'rgba(10,126,106,0.35)' },
+    'Acquisition': { bg: 'rgba(22,89,168,0.12)',   color: '#0C447C', border: 'rgba(22,89,168,0.35)' },
+    'Divestment':  { bg: 'rgba(154,98,0,0.12)',    color: '#7A4E00', border: 'rgba(154,98,0,0.35)' },
+    'Partnership': { bg: 'rgba(92,63,160,0.12)',   color: '#3C3489', border: 'rgba(92,63,160,0.35)' },
 };
 
 const STAGE_COLORS = {
-    'New Idea':   { bg: 'rgba(136,135,128,0.2)', color: '#B4B2A9' },
-    'Screening':  { bg: 'rgba(55,138,221,0.15)', color: '#85B7EB' },
-    'Assessment': { bg: 'rgba(239,159,39,0.15)',  color: '#FAC775' },
-    'DGA':        { bg: 'rgba(29,158,117,0.2)',   color: '#5DCAA5' },
-    'Project':    { bg: 'rgba(93,202,165,0.2)',   color: '#9FE1CB' },
+    'New Idea':   { bg: 'rgba(90,88,82,0.12)',   color: '#444441', border: 'rgba(90,88,82,0.35)' },
+    'Screening':  { bg: 'rgba(22,89,168,0.12)',   color: '#0C447C', border: 'rgba(22,89,168,0.35)' },
+    'Assessment': { bg: 'rgba(154,98,0,0.12)',    color: '#7A4E00', border: 'rgba(154,98,0,0.35)' },
+    'DGA':        { bg: 'rgba(10,126,106,0.12)',  color: '#065C4E', border: 'rgba(10,126,106,0.35)' },
+    'Project':    { bg: 'rgba(10,126,106,0.12)',  color: '#065C4E', border: 'rgba(10,126,106,0.35)' },
 };
+
+// ── LLM options ──────────────────────────────────────────────────────────────
+const LLM_OPTIONS = [
+    { label: 'Claude Sonnet 4.6',  value: 'sfdc_ai__DefaultBedrockAnthropicClaude46Sonnet' },
+    { label: 'GPT 5.2',            value: 'sfdc_ai__DefaultGPT52' },
+    { label: 'GPT 5.1',            value: 'sfdc_ai__DefaultGPT51' },
+    { label: 'Gemini 2.5 Pro',     value: 'sfdc_ai__DefaultVertexAIGeminiPro25' },
+];
+
+const DEFAULT_LLM = 'sfdc_ai__DefaultBedrockAnthropicClaude46Sonnet';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -49,7 +59,13 @@ export default class CfoBDCanvas extends LightningElement {
     @track isAdmin              = false;
     @track showModal            = false;
     @track adminFeedback        = '';
+    @track selectedLlm          = DEFAULT_LLM;
     @track currentDigestStatus  = '';
+
+    // ── LLM options for the modal dropdown ──────────────────────────────────
+    get llmOptions() {
+        return LLM_OPTIONS;
+    }
 
     // ── Nav ink position ─────────────────────────────────────────────────────
     get inkStyle() {
@@ -67,12 +83,10 @@ export default class CfoBDCanvas extends LightningElement {
     get isReady()              { return !this.isLoading && !this.hasError && this.digest !== null; }
 
     // ── Admin-specific getters ────────────────────────────────────────────────
-    /** True when the current digest is Ready and the user is Admin — shows Publish button. */
     get canPublish() {
         return this.isAdmin && this.currentDigestStatus === 'Ready';
     }
 
-    /** True when status is Ready — drives amber badge variant in the header. */
     get isStatusReady() {
         return this.currentDigestStatus === 'Ready';
     }
@@ -80,6 +94,7 @@ export default class CfoBDCanvas extends LightningElement {
     // ── Labels ───────────────────────────────────────────────────────────────
     get rerunLabel()   { return this.isRunning ? 'Generating...' : 'Re-run AI analysis'; }
     get statusLabel()  { return this.digest?.meta?.status || 'Ready'; }
+    get modelUsed()    { return this.digest?.meta?.llm_used || 'Claude Sonnet 4.6'; }
     get intelCount()   { return (this.digest?.key_intelligence || []).length; }
     get dgaCount()     { return (this.digest?.dga_outlook || []).length; }
     get funnelCount()  { return (this.digest?.funnel_projects || []).length; }
@@ -105,7 +120,6 @@ export default class CfoBDCanvas extends LightningElement {
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
     connectedCallback() {
-        // Check admin status in parallel with loading dates
         isCurrentUserAdmin()
             .then(result => { this.isAdmin = result; })
             .catch(() => { this.isAdmin = false; });
@@ -147,7 +161,6 @@ export default class CfoBDCanvas extends LightningElement {
             .then(result => {
                 const raw = JSON.parse(result);
                 this.digest = this.enrichDigest(raw.digest);
-                // Keep currentDigestStatus in sync so canPublish getter is accurate
                 this.currentDigestStatus = this.digest?.meta?.status || '';
                 this.isLoading = false;
             })
@@ -160,7 +173,6 @@ export default class CfoBDCanvas extends LightningElement {
 
     // ── Enrich digest with computed style properties ─────────────────────────
     enrichDigest(d) {
-        // Key intelligence
         if (d.key_intelligence) {
             d.key_intelligence = d.key_intelligence.map(item => {
                 const rc = REGION_COLORS[item.region] || { dot: '#888', header: 'linear-gradient(135deg,#1a1a1a,#2a2a2a)' };
@@ -173,17 +185,15 @@ export default class CfoBDCanvas extends LightningElement {
                 };
             });
         }
-        // Funnel projects
         if (d.funnel_projects) {
             d.funnel_projects = d.funnel_projects.map(proj => {
                 const sc = STAGE_COLORS[proj.stage] || STAGE_COLORS['Screening'];
                 return {
                     ...proj,
-                    stagePillStyle: `background:${sc.bg}; color:${sc.color}`
+                    stagePillStyle: `background:${sc.bg}; color:${sc.color}; border-color:${sc.border}`
                 };
             });
         }
-        // Engagements — parse dates
         ['current_week','coming_week'].forEach(week => {
             if (d.external_engagements?.[week]) {
                 d.external_engagements[week] = d.external_engagements[week].map(eng => {
@@ -225,23 +235,25 @@ export default class CfoBDCanvas extends LightningElement {
 
     // ── Event handlers — Re-run (admin modal) ────────────────────────────────
 
-    /** Opens the feedback modal instead of firing immediately. */
     handleRerun() {
         this.adminFeedback = '';
+        this.selectedLlm   = DEFAULT_LLM;
         this.showModal     = true;
     }
 
-    /** Keeps adminFeedback in sync as the admin types. */
     handleFeedbackChange(evt) {
         this.adminFeedback = evt.target.value;
     }
 
-    /** Admin confirms the re-run — fires the job with optional feedback. */
+    handleLlmChange(evt) {
+        this.selectedLlm = evt.target.value;
+    }
+
     handleModalConfirm() {
         this.showModal = false;
         this.isRunning = true;
 
-        triggerNewDigest({ feedback: this.adminFeedback })
+        triggerNewDigest({ feedback: this.adminFeedback, llmUsed: this.selectedLlm })
             .then(() => {
                 this.dispatchEvent(new ShowToastEvent({
                     title:   'AI analysis queued',
@@ -251,7 +263,7 @@ export default class CfoBDCanvas extends LightningElement {
                 }));
                 this.isRunning     = false;
                 this.adminFeedback = '';
-                // Reload the date list after a short delay so the Running digest appears
+                this.selectedLlm   = DEFAULT_LLM;
                 setTimeout(() => this.loadDigestDates(), 5000);
             })
             .catch(err => {
@@ -264,8 +276,6 @@ export default class CfoBDCanvas extends LightningElement {
             });
     }
 
-    /** Admin cancels — close modal, clear feedback. */
-    /** Prevents clicks inside the card from bubbling to the overlay. */
     stopPropagation(evt) {
         evt.stopPropagation();
     }
@@ -273,19 +283,16 @@ export default class CfoBDCanvas extends LightningElement {
     handleModalCancel() {
         this.showModal     = false;
         this.adminFeedback = '';
+        this.selectedLlm   = DEFAULT_LLM;
     }
 
     // ── Event handlers — Publish ─────────────────────────────────────────────
 
-    /** Flips the current digest from Ready to Published. */
     handlePublish() {
         publishDigest({ digestId: this.selectedDigestId })
             .then(() => {
-                // ── Optimistic UI update — no reload needed ────────────
-                // 1. Flip the status driving the badge and canPublish getter
                 this.currentDigestStatus = 'Published';
 
-                // 2. Also update digest.meta.status so statusLabel stays in sync
                 if (this.digest && this.digest.meta) {
                     this.digest = {
                         ...this.digest,
@@ -293,8 +300,6 @@ export default class CfoBDCanvas extends LightningElement {
                     };
                 }
 
-                // 3. Strip "· Awaiting Review" from the selected date picker option
-                //    Regex handles any spacing variation around the separator
                 this.digestDates = this.digestDates.map(d => {
                     if (d.id === this.selectedDigestId) {
                         return {

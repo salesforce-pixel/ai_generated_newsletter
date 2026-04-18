@@ -32,7 +32,6 @@
                         <span class="eyebrow-tag">CFO BD Origination</span>
                         <span class="eyebrow-sep">·</span>
 
-                        <!-- Ready status → amber badge; otherwise green badge -->
                         <template if:true={isStatusReady}>
                             <span class="eyebrow-status eyebrow-status--ready">
                                 Awaiting Review
@@ -70,8 +69,15 @@
                         </div>
                     </div>
 
-                    <!-- Controls -->
+                    <!-- Model used for generation -->
+                    <div class="hero-model-cell">
+                        <div class="hero-model-label">Model used for generation</div>
+                        <div class="hero-model-value">{modelUsed}</div>
+                    </div>
+
+                    <!-- Controls row: date picker + action buttons -->
                     <div class="hero-controls">
+
                         <!-- Date picker -->
                         <div class="date-control">
                             <label class="date-label">View digest for</label>
@@ -85,6 +91,14 @@
                             </div>
                         </div>
 
+                        <!-- Re-run button — Admin only, always visible in hero when admin -->
+                        <template if:true={isAdmin}>
+                            <button class="rerun-btn" onclick={handleRerun} disabled={isRunning}>
+                                <span class="rerun-icon" data-running={isRunning}></span>
+                                <span>{rerunLabel}</span>
+                            </button>
+                        </template>
+
                         <!-- Publish button — Admin only, visible only when digest is Ready -->
                         <template if:true={canPublish}>
                             <button class="publish-btn" onclick={handlePublish}>
@@ -92,7 +106,6 @@
                                 <span>Publish</span>
                             </button>
                         </template>
-
 
                     </div>
                 </div>
@@ -115,27 +128,31 @@
                 <template if:true={isOverviewActive}>
                     <div class="section-wrap animate-in">
 
-                        <!-- AI Summary Card -->
+                        <div class="section-header">
+                            <span class="section-header-label">01 — Executive summary</span>
+                            <span class="section-header-rule"></span>
+                            <span class="section-header-meta">AI-generated weekly brief</span>
+                        </div>
+
+                        <!-- AI Summary Card — no inline Re-run button here any more -->
                         <div class="ai-summary-card">
                             <div class="ai-summary-header">
                                 <div class="ai-pulse-dot"></div>
                                 <span class="ai-label">AI Executive Summary</span>
-                                <span class="ai-model">Claude Sonnet · {digest.meta.date_generated}</span>
-                                <!-- Re-run — Admin only, lives here because this is what gets regenerated -->
-                                <template if:true={isAdmin}>
-                                    <button class="rerun-btn rerun-btn--inline" onclick={handleRerun} disabled={isRunning}>
-                                        <span class="rerun-icon" data-running={isRunning}></span>
-                                        <span>{rerunLabel}</span>
-                                    </button>
-                                </template>
+                                <span class="ai-model">{modelUsed} · {digest.meta.date_generated}</span>
                             </div>
                             <blockquote class="ai-summary-text">{digest.ai_summary}</blockquote>
+                        </div>
+
+                        <div class="section-header">
+                            <span class="section-header-label">02 — Intelligence overview</span>
+                            <span class="section-header-rule"></span>
+                            <span class="section-header-meta">Accounts, DGA projects & funnel health</span>
                         </div>
 
                         <!-- Overview Grid -->
                         <div class="overview-grid">
 
-                            <!-- Key Intel snapshot -->
                             <div class="panel panel--intel">
                                 <div class="panel-header">
                                     <span class="panel-title">Key intelligence</span>
@@ -160,7 +177,6 @@
                                 </div>
                             </div>
 
-                            <!-- DGA Outlook -->
                             <div class="panel panel--dga">
                                 <div class="panel-header">
                                     <span class="panel-title">DGA outlook</span>
@@ -180,7 +196,6 @@
                                 </div>
                             </div>
 
-                            <!-- Funnel summary -->
                             <div class="panel panel--funnel">
                                 <div class="panel-header">
                                     <span class="panel-title">Pre-DGA funnel</span>
@@ -206,6 +221,13 @@
                 <!-- INTELLIGENCE SECTION -->
                 <template if:true={isIntelligenceActive}>
                     <div class="section-wrap animate-in">
+
+                        <div class="section-header">
+                            <span class="section-header-label">Key intelligence</span>
+                            <span class="section-header-rule"></span>
+                            <span class="section-header-meta">Account-level briefings & coverage</span>
+                        </div>
+
                         <div class="intel-cards-grid">
                             <template for:each={digest.key_intelligence} for:item="item">
                                 <div key={item.company} class="intel-card">
@@ -234,6 +256,13 @@
                 <!-- DEALS SECTION -->
                 <template if:true={isDealsActive}>
                     <div class="section-wrap animate-in">
+
+                        <div class="section-header">
+                            <span class="section-header-label">Deals of the week</span>
+                            <span class="section-header-rule"></span>
+                            <span class="section-header-meta">Notable market transactions</span>
+                        </div>
+
                         <div class="deals-list">
                             <template for:each={digest.deals_of_week} for:item="deal">
                                 <div key={deal.target} class="deal-card">
@@ -261,6 +290,13 @@
                 <!-- PIPELINE SECTION -->
                 <template if:true={isPipelineActive}>
                     <div class="section-wrap animate-in">
+
+                        <div class="section-header">
+                            <span class="section-header-label">Pipeline</span>
+                            <span class="section-header-rule"></span>
+                            <span class="section-header-meta">All projects by stage & geography</span>
+                        </div>
+
                         <div class="pipeline-table-wrap">
                             <table class="pipeline-table">
                                 <thead>
@@ -295,6 +331,13 @@
                 <!-- ENGAGEMENTS SECTION -->
                 <template if:true={isEngagementsActive}>
                     <div class="section-wrap animate-in">
+
+                        <div class="section-header">
+                            <span class="section-header-label">External engagements</span>
+                            <span class="section-header-rule"></span>
+                            <span class="section-header-meta">Customer meetings & site visits</span>
+                        </div>
+
                         <div class="engage-split">
 
                             <div class="engage-col">
@@ -365,7 +408,7 @@
 
         </template>
 
-        <!-- ── FEEDBACK MODAL (Admin Re-run) ── -->
+        <!-- ── RE-RUN MODAL (Admin) ── -->
         <template if:true={showModal}>
             <div class="modal-overlay" onclick={handleModalCancel}>
                 <div class="modal-card" onclick={stopPropagation}>
@@ -375,13 +418,35 @@
                             <div class="modal-icon">↻</div>
                             <div>
                                 <div class="modal-title">Re-run AI Analysis</div>
-                                <div class="modal-subtitle">Optionally guide the next generation</div>
+                                <div class="modal-subtitle">Choose model and optionally guide the next generation</div>
                             </div>
                         </div>
                         <button class="modal-close" onclick={handleModalCancel}>✕</button>
                     </div>
 
                     <div class="modal-body">
+
+                        <!-- LLM selector -->
+                        <label class="modal-field-label" for="llmSelect">
+                            Choose LLM for the re-run
+                        </label>
+                        <div class="modal-select-wrap">
+                            <select
+                                id="llmSelect"
+                                class="modal-select"
+                                value={selectedLlm}
+                                onchange={handleLlmChange}
+                            >
+                                <template for:each={llmOptions} for:item="opt">
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                </template>
+                            </select>
+                            <span class="modal-select-arrow">↓</span>
+                        </div>
+
+                        <div class="modal-field-spacer"></div>
+
+                        <!-- Admin guidance textarea -->
                         <label class="modal-field-label" for="feedbackArea">
                             Admin guidance
                             <span class="modal-field-optional">(optional)</span>

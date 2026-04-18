@@ -19,6 +19,10 @@
                 <behavior>Edit</behavior>
                 <field>Full_JSON_Analysis__c</field>
             </layoutItems>
+            <layoutItems>
+                <behavior>Edit</behavior>
+                <field>LLM_Used__c</field>
+            </layoutItems>
         </layoutColumns>
         <layoutColumns>
             <layoutItems>

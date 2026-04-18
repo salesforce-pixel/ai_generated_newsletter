@@ -15,7 +15,7 @@
 
     <types>
         <members>CFO_BD_Weekly_Digest__c</members>
-        <members>Market_Intelligence__c</members>
+        <members>market_intelligence__c</members>
         <name>CustomObject</name>
     </types>
 

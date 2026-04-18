@@ -2,18 +2,21 @@ public class CFOBDWeeklyDigestQueueable implements Queueable, Database.AllowsCal
 
     private Id     digestId;
     private String feedback;
+    private String llmUsed;
 
     public CFOBDWeeklyDigestQueueable(Id digestId) {
-        this(digestId, null);
+        this(digestId, null, null);
     }
 
     /**
      * @param digestId  The CFO_BD_Weekly_Digest__c record to populate.
      * @param feedback  Optional admin guidance injected into the AI prompt.
+     * @param llmUsed   The LLM model used for generating the digest.
      */
-    public CFOBDWeeklyDigestQueueable(Id digestId, String feedback) {
+    public CFOBDWeeklyDigestQueueable(Id digestId, String feedback, String llmUsed) {
         this.digestId = digestId;
         this.feedback = feedback;
+        this.llmUsed = llmUsed;
     }
 
     public void execute(QueueableContext ctx) {
@@ -174,7 +177,7 @@ public class CFOBDWeeklyDigestQueueable implements Queueable, Database.AllowsCal
 
             // ── 11. Call Models API ───────────────────────────────────────
             System.debug('--- Calling Models API ---');
-            String generatedJson = callModelsAPI(prompt);
+            String generatedJson = callModelsAPI(prompt, this.llmUsed);
             System.debug('Response length: ' + generatedJson.length());
             System.debug('Response preview (first 500 chars): ' +
                 generatedJson.substring(0, Math.min(500, generatedJson.length())));
@@ -362,11 +365,11 @@ public class CFOBDWeeklyDigestQueueable implements Queueable, Database.AllowsCal
 
     // ── Models API callout ────────────────────────────────────────────────
 
-    private static String callModelsAPI(String prompt) {
+    private static String callModelsAPI(String prompt, String llmUsed) {
         aiplatform.ModelsAPI.createGenerations_Request request =
             new aiplatform.ModelsAPI.createGenerations_Request();
 
-        request.modelName = 'sfdc_ai__DefaultBedrockAnthropicClaude46Sonnet';
+        request.modelName = String.isNotBlank(llmUsed)  ? llmUsed : 'sfdc_ai__DefaultBedrockAnthropicClaude46Sonnet';
 
         aiplatform.ModelsAPI_GenerationRequest requestBody =
             new aiplatform.ModelsAPI_GenerationRequest();

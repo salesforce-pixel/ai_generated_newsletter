@@ -17,7 +17,7 @@ public with sharing class CFOBDCanvasController {
     /**
      * Returns digest dates for the date picker.
      * Admins see Published + Ready digests; non-Admins see Published only.
-     * Each map now includes a 'status' key so the JS can track Ready vs Published.
+     * Each map includes a 'status' key so the JS can track Ready vs Published.
      */
     @AuraEnabled(cacheable=false)
     public static List<Map<String, String>> getDigestDates() {
@@ -63,7 +63,7 @@ public with sharing class CFOBDCanvasController {
     @AuraEnabled(cacheable=false)
     public static String getDigestById(Id digestId) {
         CFO_BD_Weekly_Digest__c digest = [
-            SELECT Id, Name, Date_Generated__c, Status__c, Full_JSON_Analysis__c
+            SELECT Id, Name, Date_Generated__c, Status__c, Full_JSON_Analysis__c, LLM_Used__c
             FROM   CFO_BD_Weekly_Digest__c
             WHERE  Id = :digestId
             LIMIT  1
@@ -73,18 +73,17 @@ public with sharing class CFOBDCanvasController {
             throw new AuraHandledException('Digest has no JSON content yet. Status: ' + digest.Status__c);
         }
 
-        // Inject meta.status into the JSON so LWC can display it
-        // We do a lightweight string inject rather than full parse/reserialize
-        // to avoid heap bloat on large JSONs
+        // Inject meta.status and meta.llm_used into the JSON so LWC can display them.
+        // Lightweight string injection avoids heap bloat from full parse/reserialise on large JSONs.
         String json = digest.Full_JSON_Analysis__c;
-        String statusInject = '"status":"' + digest.Status__c + '",';
+        String llmLabel = String.isNotBlank(digest.LLM_Used__c) ? digest.LLM_Used__c : 'Claude Sonnet 4.6';
+        String metaInject = '"status":"' + digest.Status__c + '","llm_used":"' + llmLabel + '",';
 
-        // Insert after "meta": {
         Integer metaIdx = json.indexOf('"meta"');
         if (metaIdx > -1) {
             Integer braceIdx = json.indexOf('{', metaIdx);
             if (braceIdx > -1) {
-                json = json.substring(0, braceIdx + 1) + statusInject + json.substring(braceIdx + 1);
+                json = json.substring(0, braceIdx + 1) + metaInject + json.substring(braceIdx + 1);
             }
         }
 
@@ -120,12 +119,14 @@ public with sharing class CFOBDCanvasController {
 
     /**
      * Enqueues a new digest job and returns the job Id.
-     * Accepts optional admin feedback to pass through to the prompt.
+     * @param feedback  Optional admin guidance to inject into the AI prompt.
+     * @param llmUsed   API name of the LLM model to use for generation.
+     *                  Defaults to Claude Sonnet 4.6 when blank/null.
      */
     @AuraEnabled
-    public static String triggerNewDigest(String feedback) {
+    public static String triggerNewDigest(String feedback, String llmUsed) {
         try {
-            CFOBDWeeklyDigestScheduler.run(feedback);
+            CFOBDWeeklyDigestScheduler.run(feedback, llmUsed);
             return 'Queued successfully';
         } catch (Exception e) {
             throw new AuraHandledException('Failed to queue digest: ' + e.getMessage());
